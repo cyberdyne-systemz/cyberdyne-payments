@@ -2,7 +2,7 @@
 
 The starter deliberately accepts negative amounts. Four baseline tests pass; the live task adds negative and zero boundary coverage.
 
-Use the included `plugins/coding-policy` package for PR preparation and shared workflow tools. See its README for installation and host trust. The session hook is informational, not push enforcement.
+Use the separate [coding-policy repository](https://github.com/cyberdyne-systemz/coding-policy) for PR preparation and shared workflow tools. Clone and install that plugin independently; see its README for installation and host trust. The session hook is informational, not push enforcement. This application repository owns its API policy and CI gate; Developer Platform owns the plugin and its tests.
 
 Before the live exercise:
 1. Merge the foundation PR. Its policy gate explicitly reports the one-time missing base policy; no model review runs on that bootstrap.
