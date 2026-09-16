@@ -1,0 +1,95 @@
+name: Codex policy review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codex-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  codex-review:
+    # Forks have no API secret. The gate below fails explicitly instead of silently passing.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      review: ${{ steps.review.outputs.final-message }}
+      bootstrap: ${{ steps.preflight.outputs.bootstrap }}
+    steps:
+      - name: Check out trusted base policy
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: policy
+          persist-credentials: false
+      - name: Check out candidate for read-only inspection
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check prerequisites
+        id: preflight
+        env:
+          HAS_API_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ ! -f policy/.github/codex/review-schema.json ]; then
+            echo 'bootstrap=true' >> "$GITHUB_OUTPUT"
+            echo 'Bootstrap PR: no trusted review policy on the base branch yet.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ "$HAS_API_KEY" != true ]; then
+            echo 'OPENAI_API_KEY repository secret is missing; no model review ran.' >&2
+            exit 1
+          fi
+          git -C candidate diff "$BASE_SHA...$HEAD_SHA" -- . > review.diff
+      - name: Review against base-branch policy
+        id: review
+        if: steps.preflight.outputs.bootstrap != 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          codex-version: '0.154.0'
+          working-directory: candidate
+          prompt-file: ${{ github.workspace }}/policy/.github/codex/review.md
+          output-schema-file: ${{ github.workspace }}/policy/.github/codex/review-schema.json
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          codex-args: '["--ephemeral"]'
+
+  policy-gate:
+    name: policy-gate
+    if: always()
+    needs: codex-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Enforce review result
+        env:
+          REVIEW_JSON: ${{ needs.codex-review.outputs.review }}
+          REVIEW_RESULT: ${{ needs.codex-review.result }}
+          BOOTSTRAP: ${{ needs.codex-review.outputs.bootstrap }}
+        run: |
+          if [ "$BOOTSTRAP" = true ]; then
+            echo 'Bootstrap only: review policy must be merged before live Codex review is available.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'This is not a passing model review.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "$REVIEW_RESULT" != success ]; then
+            echo 'Codex review did not complete. Missing credentials, unauthorized authors, and forks do not pass the gate.' >&2
+            exit 1
+          fi
+          python3 -c 'import os, pathlib; pathlib.Path("review.json").write_text(os.environ["REVIEW_JSON"])'
+          python3 .github/codex/gate.py review.json

@@ -1,0 +1,27 @@
+name: Payments CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  payments-tests:
+    name: payments-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -B -ntp verify
+      - name: Test policy gate, MCP server, and session hook
+        run: python3 -m unittest discover -s enablement/tests -v
