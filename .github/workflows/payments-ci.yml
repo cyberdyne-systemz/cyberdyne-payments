@@ -23,5 +23,5 @@ jobs:
           java-version: '21'
           cache: maven
       - run: mvn -B -ntp verify
-      - name: Test policy gate, MCP server, and session hook
+      - name: Test payments policy gate
         run: python3 -m unittest discover -s enablement/tests -v

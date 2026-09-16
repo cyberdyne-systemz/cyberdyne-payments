@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "cyberdyne-policy": {
-      "command": "python3",
-      "args": ["scripts/policy_server.py"],
-      "cwd": "."
-    }
-  }
-}
