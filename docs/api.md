@@ -11,3 +11,9 @@ Teaching stub only: no persistence, real accounts, authentication, or movement o
 Success: HTTP 201, `{"id":"<generated UUID>","amount":12.50,"currency":"USD","status":"accepted"}`.
 
 Validation errors use HTTP 400 with `code`, `message`, and `errors` (a list of `field` and `message`). A missing amount uses `VALIDATION_ERROR` / `Request validation failed` with the field message `amount is required`. Invalid JSON uses `INVALID_JSON` with an empty errors list.
+
+For example, the same request with `"amount":-1.25` returns HTTP 400:
+
+```json
+{"code":"VALIDATION_ERROR","message":"Request validation failed","errors":[{"field":"amount","message":"amount must be greater than or equal to 0"}]}
+```
