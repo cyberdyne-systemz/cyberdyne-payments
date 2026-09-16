@@ -48,6 +48,28 @@ class TransferControllerTest {
                 .andExpect(jsonPath("$.code").value("INVALID_JSON"));
     }
 
+    @Test
+    void rejectsNegativeAmountWithClearFieldError() throws Exception {
+        mvc.perform(post("/transfer").contentType(MediaType.APPLICATION_JSON).content(request("-1.25")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.errors[0].field").value("amount"))
+                .andExpect(jsonPath("$.errors[0].message").value("amount must be greater than or equal to 0"));
+    }
+
+    @Test
+    void rejectsSmallNegativeDecimal() throws Exception {
+        mvc.perform(post("/transfer").contentType(MediaType.APPLICATION_JSON).content(request("-0.01")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void acceptsZeroAmount() throws Exception {
+        mvc.perform(post("/transfer").contentType(MediaType.APPLICATION_JSON).content(request("0")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.amount").value(0));
+    }
+
     private String request(String amount) {
         return """
                 {"sourceAccount":"acct-100","destinationAccount":"acct-200","amount":%s,"currency":"USD"}
