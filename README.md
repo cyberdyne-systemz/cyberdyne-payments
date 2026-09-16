@@ -16,3 +16,5 @@ curl -i http://127.0.0.1:8080/transfer \
 ```
 
 Read [AGENTS.md](AGENTS.md) and [the API contract](docs/api.md). Baseline tests pass but miss negative and zero boundary cases. The live task is to close that gap. CI runs tests and a Codex policy review; the strict gate rejects blocking findings and invalid review output. Advisory findings remain visible without failing the gate.
+
+The shared [coding-policy plugin](https://github.com/cyberdyne-systemz/coding-policy) lives in its own repository. Clone and install it separately using its README. Payments owns `AGENTS.md`, API contracts, and `.github/codex/`; Developer Platform owns the plugin's skills, hook, MCP server, and tests.
